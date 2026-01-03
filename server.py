@@ -112,10 +112,10 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
         logger.info(f"⏳ Starting crawl for {url}...")
         result = await crawler.arun(url=url, config=config)
         if result.success:
-            content_length = len(result.markdown_v2.raw_markdown)
+            content_length = len(result.markdown.raw_markdown)
             logger.info(f"✅ Successfully crawled {url}, got {content_length} characters")
             # Basic cleaning: remove long navigation blocks or scripts if they survived to markdown
-            content = result.markdown_v2.raw_markdown
+            content = result.markdown.raw_markdown
             return f"--- SOURCE: {url} ---\n{content}\n"
         else:
             logger.error(f"❌ Crawl failed for {url}: {result.error_message}")
