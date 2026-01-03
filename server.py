@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from google import genai
 from google.genai import types
+from bs4 import BeautifulSoup
+import json
 import nest_asyncio
 
 # Required for environments where an event loop is already running
@@ -97,31 +99,12 @@ def get_search_url(domain: str, product_name: str) -> str:
 
 async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     """Crawls a site and returns the markdown content."""
-    url = get_search_url(site, product_name)
-    logger.info(f"🔍 Searching: {url}")
-    
-    # Script to extract Next.js data or generic product data
-    js_code = """
-    () => {
-        // Try to find Next.js data (Takealot uses this)
-        const nextData = document.getElementById('__NEXT_DATA__');
-        if (nextData) {
-            return "NEXT_DATA_JSON:" + nextData.textContent;
-        }
-        
-        // Fallback: Get all text content
-        return document.body.innerText;
-    }
-    """
-    
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
         exclude_external_links=True,
         wait_for="body",
         page_timeout=60000,
-        delay_before_return_html=2.0,
-        # Execute custom JS to bypass hydration issues
-        js_code=js_code,
+        delay_before_return_html=3.0,
         simulate_user=True,
         override_navigator=True,
     )
@@ -130,16 +113,41 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
         logger.info(f"⏳ Starting crawl for {url}...")
         result = await crawler.arun(url=url, config=config)
         if result.success:
-            # Use HTML content instead of markdown for better extraction
+            # Use HTML content for better extraction
             content = result.html if result.html else result.markdown.raw_markdown
             content_length = len(content)
             logger.info(f"✅ Successfully crawled {url}, got {content_length} characters")
             
-            # Log a preview of the content for debugging
-            preview = content[:500].replace('\n', ' ')
-            logger.info(f"📄 Content preview: {preview}...")
-            
-            return f"--- SOURCE: {url} ---\n{content}\n"
+            # --- INTELLIGENT PARSING STRATEGY ---
+            try:
+                soup = BeautifulSoup(content, 'html.parser')
+                
+                # Strategy 1: Look for Next.js hydration data (Takealot uses this)
+                next_data = soup.find('script', id='__NEXT_DATA__')
+                if next_data:
+                    logger.info("🎉 Found Next.js hydration data! Extracting JSON...")
+                    # Return just the JSON structure - much cleaner for AI
+                    return f"--- SOURCE (Next.js Data): {url} ---\n{next_data.string}\n"
+                
+                # Strategy 2: Check for Service Unavailable (Amazon)
+                title = soup.title.string if soup.title else ""
+                if "503" in title or "Service Unavailable" in title:
+                     logger.warning("⚠️ Amazon 503 Block detected")
+                     return f"--- SOURCE (BLOCKED): {url} ---\nERROR: Amazon blocked the request (503 Service Unavailable).\n"
+
+                # Strategy 3: Standard body extraction (fallback)
+                body_text = soup.body.get_text(separator=' ', strip=True) if soup.body else ""
+                # Truncate content if too massive to prevent token overflow, but kept generous
+                if len(body_text) > 50000:
+                    body_text = body_text[:50000] + "... (truncated)"
+                
+                logger.info(f"📄 Extracted body text length: {len(body_text)}")
+                return f"--- SOURCE: {url} ---\n{body_text}\n"
+
+            except Exception as parse_error:
+                logger.error(f"⚠️ Parsing error: {parse_error}")
+                # Fallback to raw content if parsing fails
+                return f"--- SOURCE: {url} ---\n{content[:50000]}\n"
         else:
             logger.error(f"❌ Crawl failed for {url}: {result.error_message}")
     except Exception as e:
