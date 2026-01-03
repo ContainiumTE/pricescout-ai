@@ -100,17 +100,28 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     url = get_search_url(site, product_name)
     logger.info(f"🔍 Searching: {url}")
     
+    # Script to extract Next.js data or generic product data
+    js_code = """
+    () => {
+        // Try to find Next.js data (Takealot uses this)
+        const nextData = document.getElementById('__NEXT_DATA__');
+        if (nextData) {
+            return "NEXT_DATA_JSON:" + nextData.textContent;
+        }
+        
+        // Fallback: Get all text content
+        return document.body.innerText;
+    }
+    """
+    
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
-        word_count_threshold=10,
         exclude_external_links=True,
-        # Wait for dynamic content to load (critical for JS-heavy sites)
         wait_for="body",
-        page_timeout=60000,  # Increased to 60 seconds
-        delay_before_return_html=5.0,  # Wait 5 seconds after page load for JS
-        # Try to extract main content areas
-        css_selector="body",
-        # Simulate human behavior
+        page_timeout=60000,
+        delay_before_return_html=2.0,
+        # Execute custom JS to bypass hydration issues
+        js_code=js_code,
         simulate_user=True,
         override_navigator=True,
     )
@@ -145,16 +156,12 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
 
     client = genai.Client(api_key=x_api_key)
     
-    # Stealth browser config to avoid bot detection
+    # Simple browser config - logic moved to page level js
     browser_config = BrowserConfig(
         headless=True,
         extra_args=[
             "--disable-blink-features=AutomationControlled",
-            "--disable-dev-shm-usage",
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-        ],
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        ]
     )
     
     all_markdown = ""
