@@ -62,29 +62,56 @@ You are a "Global E-Commerce Price Architect." Your goal is to take raw Markdown
 You must respond ONLY with a JSON object containing two keys: `comparison_table` (an array of product objects) and `top_recommendation` (a string explaining why the winner was chosen).
 """
 
-async def crawl_site(url: str, crawler: AsyncWebCrawler):
+# Common search URL patterns for target websites
+SEARCH_MAP = {
+    "amazon.co.za": "https://www.amazon.co.za/s?k={query}",
+    "amazon.com": "https://www.amazon.com/s?k={query}",
+    "takealot.com": "https://www.takealot.com/all?q={query}",
+    "makro.co.za": "https://www.makro.co.za/search/?text={query}",
+    "clicks.co.za": "https://www.clicks.co.za/search?text={query}",
+    "dischem.co.za": "https://www.dischem.co.za/catalogsearch/result/?q={query}",
+    "pnp.co.za": "https://www.pnp.co.za/pnpstorefront/pnp/en/search/?text={query}",
+    "game.co.za": "https://www.game.co.za/search/?text={query}",
+    "checkers.co.za": "https://www.checkers.co.za/search?q={query}",
+}
+
+def get_search_url(domain: str, product_name: str) -> str:
+    """Constructs a search URL for a given domain and product."""
+    from urllib.parse import quote
+    query = quote(product_name)
+    clean_domain = domain.lower().replace("https://", "").replace("http://", "").split('/')[0].strip()
+    
+    base_url = SEARCH_MAP.get(clean_domain)
+    if base_url:
+        return base_url.format(query=query)
+    
+    # Generic fallback
+    if "http" in domain:
+        return f"{domain}/search?q={query}"
+    return f"https://{clean_domain}/search?q={query}"
+
+async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     """Crawls a site and returns the markdown content."""
-    # We attempt to search for the product on the site. 
-    # For simplicity in this version, we assume the user provides a direct URL or domain.
-    # If it's just a domain, we'd normally need a search step. 
-    # Here we'll try to visit the domain and see what we get, or assume the website list includes search URLs.
+    url = get_search_url(site, product_name)
+    print(f"Searching: {url}")
     
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
         word_count_threshold=10,
         exclude_external_links=True,
+        # Wait for content to load (some sites are SPA)
+        wait_for="body",
+        page_timeout=30000,
     )
-    
-    # Prepend https if missing
-    if not url.startswith(("http://", "https://")):
-        # If it's a domain like amazon.com, we try to append a search query if we can, 
-        # but for now let's just visit the domain or the search URL if provided.
-        url = f"https://{url}"
     
     try:
         result = await crawler.arun(url=url, config=config)
         if result.success:
-            return f"--- SOURCE: {url} ---\n{result.markdown_v2.raw_markdown}\n"
+            # Basic cleaning: remove long navigation blocks or scripts if they survived to markdown
+            content = result.markdown_v2.raw_markdown
+            return f"--- SOURCE: {url} ---\n{content}\n"
+        else:
+            print(f"Crawl failed for {url}: {result.error_message}")
     except Exception as e:
         print(f"Error crawling {url}: {e}")
     return ""
@@ -96,14 +123,18 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
 
     client = genai.Client(api_key=x_api_key)
     
-    browser_config = BrowserConfig(headless=True)
+    # More "human-like" browser config
+    browser_config = BrowserConfig(
+        headless=True,
+        extra_args=["--disable-blink-features=AutomationControlled"],
+    )
     
     all_markdown = ""
     async with AsyncWebCrawler(config=browser_config) as crawler:
         # Crawl all websites in parallel
-        tasks = [crawl_site(site, crawler) for site in params.websites]
+        tasks = [crawl_site(site, params.productName, crawler) for site in params.websites]
         results = await asyncio.gather(*tasks)
-        all_markdown = "\n".join(results)
+        all_markdown = "\n".join([r for r in results if r])
 
     if not all_markdown.strip():
         raise HTTPException(status_code=500, detail="Failed to extract content from any target websites.")
