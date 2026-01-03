@@ -99,9 +99,11 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
         cache_mode=CacheMode.BYPASS,
         word_count_threshold=10,
         exclude_external_links=True,
-        # Wait for content to load (some sites are SPA)
+        # Wait for content to load
         wait_for="body",
         page_timeout=30000,
+        # Aggressive memory saving: only keep relevant content
+        fit_markdown=True,
     )
     
     try:
@@ -131,10 +133,14 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
     
     all_markdown = ""
     async with AsyncWebCrawler(config=browser_config) as crawler:
-        # Crawl all websites in parallel
-        tasks = [crawl_site(site, params.productName, crawler) for site in params.websites]
-        results = await asyncio.gather(*tasks)
-        all_markdown = "\n".join([r for r in results if r])
+        # Crawl websites SEQUENTIALLY to save memory on Render Free Tier
+        for site in params.websites:
+            try:
+                result = await crawl_site(site, params.productName, crawler)
+                if result:
+                    all_markdown += result + "\n"
+            except Exception as e:
+                print(f"Skipping {site} due to error: {e}")
 
     if not all_markdown.strip():
         raise HTTPException(status_code=500, detail="Failed to extract content from any target websites.")
