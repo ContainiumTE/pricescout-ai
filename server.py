@@ -171,7 +171,7 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
 
     try:
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-1.5-flash-latest",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
