@@ -99,6 +99,9 @@ def get_search_url(domain: str, product_name: str) -> str:
 
 async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     """Crawls a site and returns the markdown content."""
+    url = get_search_url(site, product_name)
+    logger.info(f"🔍 Searching: {url}")
+
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
         exclude_external_links=True,
