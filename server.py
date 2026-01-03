@@ -1,5 +1,6 @@
 import os
 import asyncio
+import logging
 from typing import List
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,10 @@ import nest_asyncio
 
 # Required for environments where an event loop is already running
 nest_asyncio.apply()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PriceScout AI Backend")
 
@@ -93,34 +98,37 @@ def get_search_url(domain: str, product_name: str) -> str:
 async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     """Crawls a site and returns the markdown content."""
     url = get_search_url(site, product_name)
-    print(f"Searching: {url}")
+    logger.info(f"🔍 Searching: {url}")
     
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
         word_count_threshold=10,
         exclude_external_links=True,
-        # Wait for content to load
         wait_for="body",
         page_timeout=30000,
-        # Aggressive memory saving: only keep relevant content
-        fit_markdown=True,
     )
     
     try:
+        logger.info(f"⏳ Starting crawl for {url}...")
         result = await crawler.arun(url=url, config=config)
         if result.success:
+            content_length = len(result.markdown_v2.raw_markdown)
+            logger.info(f"✅ Successfully crawled {url}, got {content_length} characters")
             # Basic cleaning: remove long navigation blocks or scripts if they survived to markdown
             content = result.markdown_v2.raw_markdown
             return f"--- SOURCE: {url} ---\n{content}\n"
         else:
-            print(f"Crawl failed for {url}: {result.error_message}")
+            logger.error(f"❌ Crawl failed for {url}: {result.error_message}")
     except Exception as e:
-        print(f"Error crawling {url}: {e}")
+        logger.error(f"💥 Exception while crawling {url}: {str(e)}", exc_info=True)
     return ""
 
 @app.post("/analyze", response_model=AnalysisResult)
 async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
+    logger.info(f"📥 Received request for product: {params.productName}, brands: {params.brands}, websites: {params.websites}")
+    
     if not x_api_key:
+        logger.error("❌ No API key provided")
         raise HTTPException(status_code=400, detail="X-API-KEY header is required")
 
     client = genai.Client(api_key=x_api_key)
@@ -132,18 +140,32 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
     )
     
     all_markdown = ""
-    async with AsyncWebCrawler(config=browser_config) as crawler:
-        # Crawl websites SEQUENTIALLY to save memory on Render Free Tier
-        for site in params.websites:
-            try:
-                result = await crawl_site(site, params.productName, crawler)
-                if result:
-                    all_markdown += result + "\n"
-            except Exception as e:
-                print(f"Skipping {site} due to error: {e}")
+    logger.info(f"🌐 Starting crawler...")
+    
+    try:
+        async with AsyncWebCrawler(config=browser_config) as crawler:
+            logger.info(f"✅ Crawler initialized successfully")
+            # Crawl websites SEQUENTIALLY to save memory on Render Free Tier
+            for i, site in enumerate(params.websites, 1):
+                logger.info(f"📍 Processing site {i}/{len(params.websites)}: {site}")
+                try:
+                    result = await crawl_site(site, params.productName, crawler)
+                    if result:
+                        all_markdown += result + "\n"
+                        logger.info(f"✅ Successfully added content from {site}")
+                    else:
+                        logger.warning(f"⚠️ No content extracted from {site}")
+                except Exception as e:
+                    logger.error(f"💥 Error processing {site}: {str(e)}", exc_info=True)
+    except Exception as e:
+        logger.error(f"💥 Failed to initialize crawler: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Crawler initialization failed: {str(e)}")
 
     if not all_markdown.strip():
+        logger.error("❌ No content extracted from any website")
         raise HTTPException(status_code=500, detail="Failed to extract content from any target websites.")
+    
+    logger.info(f"📊 Total markdown length: {len(all_markdown)} characters")
 
     prompt = f"{SYSTEM_PROMPT.format(brands=', '.join(params.brands), product_name=params.productName)}\n\nRAW DATA:\n{all_markdown}"
 
