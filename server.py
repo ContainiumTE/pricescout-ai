@@ -171,7 +171,7 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
 
     try:
         response = client.models.generate_content(
-            model="gemini-1.5-flash-latest",
+            model="gemini-1.5-flash-001",
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -183,7 +183,14 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
         analysis = json.loads(response.text)
         return analysis
     except Exception as e:
-        print(f"Gemini Error: {e}")
+        logger.error(f"💥 AI Analysis failed: {str(e)}")
+        # Diagnostic: List available models to find the correct name
+        try:
+            logger.info("📋 Listing available models for debugging:")
+            for m in client.models.list():
+                logger.info(f" - {m.name}")
+        except Exception as list_err:
+            logger.error(f"Failed to list models: {list_err}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
