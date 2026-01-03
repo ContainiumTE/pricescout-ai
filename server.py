@@ -107,9 +107,12 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
         # Wait for dynamic content to load (critical for JS-heavy sites)
         wait_for="body",
         page_timeout=60000,  # Increased to 60 seconds
-        delay_before_return_html=3.0,  # Wait 3 seconds after page load
+        delay_before_return_html=5.0,  # Wait 5 seconds after page load for JS
         # Try to extract main content areas
         css_selector="body",
+        # Simulate human behavior
+        simulate_user=True,
+        override_navigator=True,
     )
     
     try:
@@ -142,10 +145,16 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
 
     client = genai.Client(api_key=x_api_key)
     
-    # More "human-like" browser config
+    # Stealth browser config to avoid bot detection
     browser_config = BrowserConfig(
         headless=True,
-        extra_args=["--disable-blink-features=AutomationControlled"],
+        extra_args=[
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+        ],
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     )
     
     all_markdown = ""
