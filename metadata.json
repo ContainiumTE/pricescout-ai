@@ -1,0 +1,5 @@
+{
+  "name": "PriceScout AI_v2",
+  "description": "An AI-powered price comparison architect that scans specific websites for brands and products to find the best deals.",
+  "requestFramePermissions": []
+}
