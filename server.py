@@ -104,18 +104,27 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
         cache_mode=CacheMode.BYPASS,
         word_count_threshold=10,
         exclude_external_links=True,
+        # Wait for dynamic content to load (critical for JS-heavy sites)
         wait_for="body",
-        page_timeout=30000,
+        page_timeout=60000,  # Increased to 60 seconds
+        delay_before_return_html=3.0,  # Wait 3 seconds after page load
+        # Try to extract main content areas
+        css_selector="body",
     )
     
     try:
         logger.info(f"⏳ Starting crawl for {url}...")
         result = await crawler.arun(url=url, config=config)
         if result.success:
-            content_length = len(result.markdown.raw_markdown)
+            # Use HTML content instead of markdown for better extraction
+            content = result.html if result.html else result.markdown.raw_markdown
+            content_length = len(content)
             logger.info(f"✅ Successfully crawled {url}, got {content_length} characters")
-            # Basic cleaning: remove long navigation blocks or scripts if they survived to markdown
-            content = result.markdown.raw_markdown
+            
+            # Log a preview of the content for debugging
+            preview = content[:500].replace('\n', ' ')
+            logger.info(f"📄 Content preview: {preview}...")
+            
             return f"--- SOURCE: {url} ---\n{content}\n"
         else:
             logger.error(f"❌ Crawl failed for {url}: {result.error_message}")
