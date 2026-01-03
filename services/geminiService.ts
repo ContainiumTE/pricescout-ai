@@ -2,7 +2,12 @@ import { AnalysisResult, SearchParams } from "../types";
 
 // In production (Vercel), we will set REACT_APP_API_URL to the Render Backend URL.
 // If not set, it defaults to localhost for testing.
-const BACKEND_URL = process.env.REACT_APP_API_URL || "http://localhost:8000/analyze";
+const getBackendUrl = () => {
+  const url = process.env.REACT_APP_API_URL || "http://localhost:8000";
+  return url.endsWith("/analyze") ? url : `${url.replace(/\/$/, "")}/analyze`;
+};
+
+const BACKEND_URL = getBackendUrl();
 
 export const fetchProductAnalysis = async (params: SearchParams): Promise<AnalysisResult> => {
   const apiKey = process.env.API_KEY;

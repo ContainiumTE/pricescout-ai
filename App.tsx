@@ -19,7 +19,7 @@ const App: React.FC = () => {
   const [productName, setProductName] = useState('');
   const [brands, setBrands] = useState<string[]>([]);
   const [websites, setWebsites] = useState<string[]>(DEFAULT_WEBSITES);
-  
+
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +54,8 @@ const App: React.FC = () => {
       });
       setResult(data);
       setStatus(AppStatus.COMPLETE);
-    } catch (err) {
-      setError("Failed to analyze products. Please verify your API Key and try again.");
+    } catch (err: any) {
+      setError(err.message || "Failed to analyze products. Please verify your API Key and try again.");
       setStatus(AppStatus.ERROR);
     }
   };
@@ -70,7 +70,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
-      
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -89,7 +89,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        
+
         {status === AppStatus.IDLE && (
           <div className="max-w-2xl mx-auto space-y-8 animate-fadeIn">
             <div className="text-center space-y-4">
@@ -97,13 +97,13 @@ const App: React.FC = () => {
                 Find the Best Deal. <span className="text-blue-600">Instantly.</span>
               </h2>
               <p className="text-lg text-slate-600">
-                Enter a product, your preferred brands, and the stores you trust. 
+                Enter a product, your preferred brands, and the stores you trust.
                 Our AI Agent scans them in real-time to build your comparison matrix.
               </p>
             </div>
 
             <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 space-y-6">
-              
+
               {/* Product Name Input */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -154,7 +154,7 @@ const App: React.FC = () => {
                 Scan Prices & Build Matrix
               </button>
             </div>
-            
+
             <div className="text-center text-sm text-slate-400">
               Note: The tool searches strict domains (e.g., 'amazon.com') to ensure link accuracy.
             </div>
@@ -168,12 +168,12 @@ const App: React.FC = () => {
               <div className="absolute top-0 left-0 w-full h-full border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Architecting Your Deals...</h2>
-            
+
             {/* Dynamic Scanning Text */}
             <p className="text-slate-500 text-lg transition-all duration-300 min-h-[1.75rem]">
               Scanning <span className="font-semibold text-blue-600">{websites[currentScanningSite] || 'web'}</span> for availability...
             </p>
-            
+
             <div className="mt-8 space-y-2 max-w-sm mx-auto">
               <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 animate-progressBar w-full origin-left"></div>
