@@ -77,10 +77,10 @@ const App: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Hexagon Search Icon (Logo) */}
+            {/* Hexagon Search Icon (Logo) - Flat Top */}
             <div className="relative w-10 h-10 flex items-center justify-center">
               <svg viewBox="0 0 100 100" className="w-full h-full text-containium-cyan drop-shadow-md" fill="currentColor">
-                <polygon points="50 0, 95 25, 95 75, 50 100, 5 75, 5 25" />
+                <polygon points="25 5, 75 5, 95 50, 75 95, 25 95, 5 50" />
               </svg>
               <svg className="w-5 h-5 text-white absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -156,7 +156,7 @@ const App: React.FC = () => {
 
               <button
                 onClick={handleSearch}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                className="w-full py-4 bg-containium-cyan hover:bg-cyan-400 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 border border-cyan-400/20"
               >
                 Scan Prices & Build Matrix
               </button>
@@ -170,13 +170,15 @@ const App: React.FC = () => {
 
         {status === AppStatus.SEARCHING && (
           <div className="max-w-2xl mx-auto pt-20 text-center">
-            {/* Rotating Hexagon Loader */}
+            {/* Rotating Hexagon Loader - Flat Top */}
             <div className="inline-block relative w-24 h-24 mb-8">
+              {/* Background Trace */}
               <svg viewBox="0 0 100 100" className="w-full h-full text-slate-200" fill="none" stroke="currentColor" strokeWidth="4">
-                <polygon points="50 5, 95 30, 95 75, 50 95, 5 75, 5 30" />
+                <polygon points="25 5, 75 5, 95 50, 75 95, 25 95, 5 50" />
               </svg>
+              {/* Spinning Active Trace */}
               <svg viewBox="0 0 100 100" className="w-full h-full text-containium-cyan absolute top-0 left-0 animate-spin-slow" fill="none" stroke="currentColor" strokeWidth="4">
-                <polygon points="50 5, 95 30, 95 75, 50 95, 5 75, 5 30" strokeDasharray="280" strokeDashoffset="180" />
+                <polygon points="25 5, 75 5, 95 50, 75 95, 25 95, 5 50" strokeDasharray="210" strokeDashoffset="100" strokeLinecap="round" />
               </svg>
             </div>
 
