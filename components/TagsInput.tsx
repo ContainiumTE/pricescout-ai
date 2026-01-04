@@ -36,13 +36,13 @@ export const TagsInput: React.FC<TagsInputProps> = ({ label, placeholder, tags, 
         {icon}
         {label}
       </label>
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all shadow-sm">
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-containium-cyan focus-within:border-transparent transition-all shadow-sm">
         {tags.map((tag, index) => (
-          <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 animate-fadeIn">
+          <span key={index} className="bg-cyan-50 text-cyan-900 border border-cyan-100 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 animate-fadeIn">
             {tag}
             <button
               onClick={() => removeTag(index)}
-              className="hover:text-blue-600 focus:outline-none ml-1"
+              className="hover:text-cyan-600 focus:outline-none ml-1"
             >
               &times;
             </button>

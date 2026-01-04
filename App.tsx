@@ -19,6 +19,8 @@ const App: React.FC = () => {
   const [productName, setProductName] = useState('');
   const [brands, setBrands] = useState<string[]>([]);
   const [websites, setWebsites] = useState<string[]>(DEFAULT_WEBSITES);
+  // Theme color for internal usage if needed (though we use tailwind classes)
+  // const THEME_COLOR = "#00EAFF"; 
 
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -75,15 +77,20 @@ const App: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            {/* Hexagon Search Icon (Logo) */}
+            <div className="relative w-10 h-10 flex items-center justify-center">
+              <svg viewBox="0 0 100 100" className="w-full h-full text-containium-cyan drop-shadow-md" fill="currentColor">
+                <polygon points="50 0, 95 25, 95 75, 50 100, 5 75, 5 25" />
+              </svg>
+              <svg className="w-5 h-5 text-white absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">PriceScout AI</h1>
           </div>
-          <div className="text-xs font-medium text-slate-400">
-            Powered by Gemini Pro & Google Search
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+            <span>Powered by</span>
+            <img src="/containium-logo.png" alt="Containium" className="h-6 opacity-80" />
           </div>
         </div>
       </header>
@@ -91,23 +98,23 @@ const App: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         {status === AppStatus.IDLE && (
-          <div className="max-w-2xl mx-auto space-y-8 animate-fadeIn">
-            <div className="text-center space-y-4">
-              <h2 className="text-4xl font-extrabold text-slate-900">
-                Find the Best Deal. <span className="text-blue-600">Instantly.</span>
+          <div className="max-w-2xl mx-auto space-y-6 sm:space-y-8 animate-fadeIn">
+            <div className="text-center space-y-3 sm:space-y-4">
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
+                Find the Best Deal. <span className="text-containium-cyan">Instantly.</span>
               </h2>
-              <p className="text-lg text-slate-600">
+              <p className="text-base sm:text-lg text-slate-600 px-2">
                 Enter a product, your preferred brands, and the stores you trust.
                 Our AI Agent scans them in real-time to build your comparison matrix.
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 space-y-6">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-xl border border-slate-100 space-y-5 sm:space-y-6">
 
               {/* Product Name Input */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-containium-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                   Product Name
@@ -117,7 +124,7 @@ const App: React.FC = () => {
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   placeholder="e.g. Wireless Noise Cancelling Headphones"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-containium-cyan focus:border-transparent transition-all outline-none"
                 />
               </div>
 
@@ -162,21 +169,27 @@ const App: React.FC = () => {
         )}
 
         {status === AppStatus.SEARCHING && (
-          <div className="max-w-2xl mx-auto pt-20 text-center animate-pulse">
-            <div className="inline-block relative w-20 h-20 mb-8">
-              <div className="absolute top-0 left-0 w-full h-full border-4 border-slate-200 rounded-full"></div>
-              <div className="absolute top-0 left-0 w-full h-full border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+          <div className="max-w-2xl mx-auto pt-20 text-center">
+            {/* Rotating Hexagon Loader */}
+            <div className="inline-block relative w-24 h-24 mb-8">
+              <svg viewBox="0 0 100 100" className="w-full h-full text-slate-200" fill="none" stroke="currentColor" strokeWidth="4">
+                <polygon points="50 5, 95 30, 95 75, 50 95, 5 75, 5 30" />
+              </svg>
+              <svg viewBox="0 0 100 100" className="w-full h-full text-containium-cyan absolute top-0 left-0 animate-spin-slow" fill="none" stroke="currentColor" strokeWidth="4">
+                <polygon points="50 5, 95 30, 95 75, 50 95, 5 75, 5 30" strokeDasharray="280" strokeDashoffset="180" />
+              </svg>
             </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Architecting Your Deals...</h2>
+
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 animate-pulse">Architecting Your Deals...</h2>
 
             {/* Dynamic Scanning Text */}
             <p className="text-slate-500 text-lg transition-all duration-300 min-h-[1.75rem]">
-              Scanning <span className="font-semibold text-blue-600">{websites[currentScanningSite] || 'web'}</span> for availability...
+              Scanning <span className="font-semibold text-containium-cyan">{websites[currentScanningSite] || 'web'}</span> for availability...
             </p>
 
             <div className="mt-8 space-y-2 max-w-sm mx-auto">
               <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 animate-progressBar w-full origin-left"></div>
+                <div className="h-full bg-containium-cyan animate-progressBar w-full origin-left"></div>
               </div>
             </div>
           </div>
