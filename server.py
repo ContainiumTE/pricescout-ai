@@ -232,14 +232,27 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
             model="models/gemini-flash-latest",
             contents=prompt,
             config=types.GenerateContentConfig(
-                response_mime_type="application/json",
+                # Allow the model to decide when to search vs when to answer (no strict JSON enforcement while using tools)
                 tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )
         
-        # Parse the response
+        # Robust Parsing Strategy
+        # The model might return text with ```json blocks or just raw JSON
+        raw_text = response.text
+        if not raw_text:
+             logger.error("❌ AI returned empty response (possibly blocked or search failed)")
+             raise ValueError("AI returned empty response")
+
         import json
-        analysis = json.loads(response.text)
+        import re
+        
+        # Clean up markdown code blocks if present
+        cleaned_text = re.sub(r"```json\s*", "", raw_text, flags=re.IGNORECASE)
+        cleaned_text = re.sub(r"```", "", cleaned_text)
+        cleaned_text = cleaned_text.strip()
+        
+        analysis = json.loads(cleaned_text)
         return analysis
     except Exception as e:
         logger.error(f"💥 AI Analysis failed: {str(e)}")
