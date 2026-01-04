@@ -77,10 +77,23 @@ const App: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Hexagon Search Icon (Logo) - Using Image */}
+            {/* Logo with Magnifying Glass */}
             <div className="relative w-10 h-10 flex items-center justify-center">
-              <img src="/hexagon.png" alt="Containium Hexagon" className="w-full h-full object-contain drop-shadow-md" />
-              <svg className="w-5 h-5 text-white absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-full h-full drop-shadow-sm" viewBox="0 0 100 100">
+                <path
+                  fill="#00EAFF"
+                  d="M50 5 L93.3 30 L93.3 80 L50 105 L6.7 80 L6.7 30 Z"
+                  className="opacity-10"
+                />
+                <path
+                  fill="none"
+                  stroke="#00EAFF"
+                  strokeWidth="4"
+                  d="M50 5 L93.3 30 L93.3 80 L50 105 L6.7 80 L6.7 30 Z"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <svg className="w-5 h-5 text-slate-700 absolute translate-y-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -165,9 +178,25 @@ const App: React.FC = () => {
 
         {status === AppStatus.SEARCHING && (
           <div className="max-w-2xl mx-auto pt-20 text-center">
-            {/* Rotating Hexagon Loader - Using Image */}
-            <div className="inline-block relative w-24 h-24 mb-8">
-              <img src="/hexagon.png" alt="Scanning..." className="w-full h-full object-contain animate-spin-slow" />
+            {/* Custom Animated Hexagon */}
+            <div className="inline-block relative w-24 h-24 mb-10">
+              <svg className="w-full h-full drop-shadow-[0_0_15px_rgba(0,234,255,0.4)]" viewBox="0 0 100 100">
+                <defs>
+                  <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#00EAFF" />
+                    <stop offset="100%" stopColor="#0099FF" />
+                  </linearGradient>
+                </defs>
+                <path
+                  className="animate-hexagon-morph fill-none stroke-[url(#hexGradient)] stroke-[3]"
+                  d="M50 5 L89 27.5 L89 72.5 L50 95 L11 72.5 L11 27.5 Z"
+                  strokeLinejoin="round"
+                />
+                <circle cx="50" cy="50" r="4" className="fill-containium-cyan animate-pulse" />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center animate-spin-slow-reverse opacity-20">
+                <div className="w-full h-full border-4 border-dashed border-containium-cyan rounded-full"></div>
+              </div>
             </div>
 
             <h2 className="text-2xl font-bold text-slate-800 mb-2 animate-pulse">Architecting Your Deals...</h2>
@@ -224,6 +253,24 @@ const App: React.FC = () => {
         }
         .animate-fadeIn {
           animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes hexagonMorph {
+          0%, 100% { stroke-dasharray: 300; stroke-dashoffset: 300; transform: rotate(0deg) scale(1); }
+          50% { stroke-dasharray: 300; stroke-dashoffset: 0; transform: rotate(180deg) scale(1.1); }
+        }
+        .animate-hexagon-morph {
+          animation: hexagonMorph 4s ease-in-out infinite;
+          transform-origin: center;
+        }
+        .animate-spin-slow {
+          animation: spin 12s linear infinite;
+        }
+        .animate-spin-slow-reverse {
+          animation: spin 18s linear infinite reverse;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
 
