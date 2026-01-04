@@ -1,4 +1,4 @@
-import os
+﻿import os
 import asyncio
 import logging
 from typing import List
@@ -116,7 +116,7 @@ def get_search_url(domain: str, product_name: str) -> str:
 async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     """Crawls a site and returns the markdown content."""
     url = get_search_url(site, product_name)
-    logger.info(f"🔍 Searching: {url}")
+    logger.info(f"≡ƒöì Searching: {url}")
 
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
@@ -129,13 +129,13 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     )
     
     try:
-        logger.info(f"⏳ Starting crawl for {url}...")
+        logger.info(f"ΓÅ│ Starting crawl for {url}...")
         result = await crawler.arun(url=url, config=config)
         if result.success:
             # Use HTML content for better extraction
             content = result.html if result.html else result.markdown.raw_markdown
             content_length = len(content)
-            logger.info(f"✅ Successfully crawled {url}, got {content_length} characters")
+            logger.info(f"Γ£à Successfully crawled {url}, got {content_length} characters")
             
             # --- INTELLIGENT PARSING STRATEGY ---
             try:
@@ -144,88 +144,52 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
                 # Strategy 1: Look for Next.js hydration data (Takealot uses this)
                 next_data = soup.find('script', id='__NEXT_DATA__')
                 if next_data:
-                    logger.info("🎉 Found Next.js hydration data! Extracting JSON...")
+                    logger.info("≡ƒÄë Found Next.js hydration data! Extracting JSON...")
                     return f"--- SOURCE (Next.js Data): {url} ---\n{next_data.string}\n"
                 
                 # Strategy 1.5: Regex fallback for Next.js data (in case BS4 fails)
                 import re
                 next_data_regex = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.+?)</script>', content)
                 if next_data_regex:
-                     logger.info("🎉 Found Next.js hydration data (via Regex)! Extracting JSON...")
+                     logger.info("≡ƒÄë Found Next.js hydration data (via Regex)! Extracting JSON...")
                      return f"--- SOURCE (Next.js Data): {url} ---\n{next_data_regex.group(1)}\n"
                 
                 # Strategy 2: Check for Service Unavailable (Amazon)
                 title = soup.title.string if soup.title else ""
                 if "503" in title or "Service Unavailable" in title:
-                     logger.warning("⚠️ Amazon 503 Block detected")
+                     logger.warning("ΓÜá∩╕Å Amazon 503 Block detected")
                      return f"--- SOURCE (BLOCKED): {url} ---\nERROR: Amazon blocked the request (503 Service Unavailable).\n"
 
-                # Strategy 3: Markdown fallback (MUCH cleaner for AI than raw text)
-                body_content = ""
-                if hasattr(result, 'markdown') and result.markdown:
-                    # Handle both object-based and string-based markdown results
-                    if hasattr(result.markdown, 'raw_markdown'):
-                        body_content = result.markdown.raw_markdown
-                    elif isinstance(result.markdown, str):
-                        body_content = result.markdown
-                
-                if not body_content:
-                    body_content = soup.body.get_text(separator=' ', strip=True) if soup.body else ""
-                
+                # Strategy 3: Standard body extraction (fallback)
+                body_text = soup.body.get_text(separator=' ', strip=True) if soup.body else ""
                 # Truncate content if too massive to prevent token overflow, but kept generous
-                if len(body_content) > 50000:
-                    body_content = body_content[:50000] + "... (truncated)"
+                if len(body_text) > 50000:
+                    body_text = body_text[:50000] + "... (truncated)"
                 
-                logger.info(f"📄 Extracted content length: {len(body_content)}")
-                return f"--- SOURCE: {url} ---\n{body_content}\n"
+                logger.info(f"≡ƒôä Extracted body text length: {len(body_text)}")
+                return f"--- SOURCE: {url} ---\n{body_text}\n"
 
             except Exception as parse_error:
-                logger.error(f"⚠️ Parsing error: {parse_error}")
+                logger.error(f"ΓÜá∩╕Å Parsing error: {parse_error}")
+                # Fallback to raw content if parsing fails
                 return f"--- SOURCE: {url} ---\n{content[:50000]}\n"
         else:
-            logger.error(f"❌ Crawl failed for {url}: {result.error_message}")
+            logger.error(f"Γ¥î Crawl failed for {url}: {result.error_message}")
     except Exception as e:
-        logger.error(f"💥 Exception while crawling {url}: {str(e)}", exc_info=True)
+        logger.error(f"≡ƒÆÑ Exception while crawling {url}: {str(e)}", exc_info=True)
     return ""
-
-def robust_json_extract(text: str):
-    """Extracts valid JSON from text, handling markdown blocks and preambles."""
-    import json
-    import re
-    
-    # 1. Try finding content between ```json and ```
-    json_blocks = re.findall(r"```json\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
-    if json_blocks:
-        for block in json_blocks:
-            try:
-                return json.loads(block)
-            except json.JSONDecodeError:
-                continue
-
-    # 2. Try finding the first '{' and last '}'
-    match = re.search(r"(\{.*\})", text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # 3. Fallback: simple cleanup
-    cleaned = re.sub(r"```json\s*", "", text, flags=re.IGNORECASE)
-    cleaned = re.sub(r"```", "", cleaned).strip()
-    return json.loads(cleaned)
 
 @app.post("/analyze", response_model=AnalysisResult)
 async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
-    logger.info(f"📥 Received request for product: {params.productName}, brands: {params.brands}, websites: {params.websites}")
+    logger.info(f"≡ƒôÑ Received request for product: {params.productName}, brands: {params.brands}, websites: {params.websites}")
     
     if not x_api_key:
-        logger.error("❌ No API key provided")
+        logger.error("Γ¥î No API key provided")
         raise HTTPException(status_code=400, detail="X-API-KEY header is required")
 
     client = genai.Client(api_key=x_api_key)
     
-    # Simple browser config
+    # Simple browser config - logic moved to page level js
     browser_config = BrowserConfig(
         headless=True,
         extra_args=[
@@ -234,27 +198,33 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
     )
     
     all_markdown = ""
-    logger.info(f"🌐 Starting crawler...")
+    logger.info(f"≡ƒîÉ Starting crawler...")
     
     try:
         async with AsyncWebCrawler(config=browser_config) as crawler:
-            logger.info(f"✅ Crawler initialized successfully")
+            logger.info(f"Γ£à Crawler initialized successfully")
+            # Crawl websites SEQUENTIALLY to save memory on Render Free Tier
             for i, site in enumerate(params.websites, 1):
-                logger.info(f"📍 Processing site {i}/{len(params.websites)}: {site}")
+                logger.info(f"≡ƒôì Processing site {i}/{len(params.websites)}: {site}")
                 try:
                     result = await crawl_site(site, params.productName, crawler)
                     if result:
                         all_markdown += result + "\n"
+                        logger.info(f"Γ£à Successfully added content from {site}")
+                    else:
+                        logger.warning(f"ΓÜá∩╕Å No content extracted from {site}")
                 except Exception as e:
-                    logger.error(f"💥 Error processing {site}: {str(e)}")
+                    logger.error(f"≡ƒÆÑ Error processing {site}: {str(e)}", exc_info=True)
     except Exception as e:
-        logger.error(f"💥 Failed to initialize crawler: {str(e)}")
+        logger.error(f"≡ƒÆÑ Failed to initialize crawler: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Crawler initialization failed: {str(e)}")
 
     if not all_markdown.strip():
-        logger.error("❌ No content extracted")
-        raise HTTPException(status_code=500, detail="Failed to extract content from target websites.")
+        logger.error("Γ¥î No content extracted from any website")
+        raise HTTPException(status_code=500, detail="Failed to extract content from any target websites.")
     
+    logger.info(f"≡ƒôè Total markdown length: {len(all_markdown)} characters")
+
     prompt = f"{SYSTEM_PROMPT.format(brands=', '.join(params.brands), product_name=params.productName)}\n\nRAW DATA:\n{all_markdown}"
 
     try:
@@ -262,33 +232,33 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
             model="models/gemini-flash-latest",
             contents=prompt,
             config=types.GenerateContentConfig(
+                # Allow the model to decide when to search vs when to answer (no strict JSON enforcement while using tools)
                 tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )
         
+        # Robust Parsing Strategy
+        # The model might return text with ```json blocks or just raw JSON
         raw_text = response.text
         if not raw_text:
+             logger.error("Γ¥î AI returned empty response (possibly blocked or search failed)")
              raise ValueError("AI returned empty response")
 
-        analysis = robust_json_extract(raw_text)
+        import json
+        import re
+        
+        # Clean up markdown code blocks if present
+        cleaned_text = re.sub(r"```json\s*", "", raw_text, flags=re.IGNORECASE)
+        cleaned_text = re.sub(r"```", "", cleaned_text)
+        cleaned_text = cleaned_text.strip()
+        
+        analysis = json.loads(cleaned_text)
         return analysis
     except Exception as e:
-        logger.error(f"💥 AI Analysis failed: {str(e)}. Retrying in JSON mode...")
-        try:
-            response_retry = client.models.generate_content(
-                model="models/gemini-flash-latest",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                ),
-            )
-            return robust_json_extract(response_retry.text)
-        except Exception as retry_error:
-             logger.error(f"💥 AI Retry failed: {str(retry_error)}")
-             raise HTTPException(status_code=500, detail="AI Analysis failed after retry.")
+        logger.error(f"≡ƒÆÑ AI Analysis failed: {str(e)}")
         # Diagnostic: List available models to find the correct name
         try:
-            logger.info("📋 Listing available models for debugging:")
+            logger.info("≡ƒôï Listing available models for debugging:")
             for m in client.models.list():
                 logger.info(f" - {m.name}")
         except Exception as list_err:
