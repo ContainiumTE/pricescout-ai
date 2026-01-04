@@ -60,13 +60,29 @@ You are a "Global E-Commerce Price Architect." Your goal is to take raw Markdown
     * **Hidden Value:** Identify coupons, "Subscribe & Save," or bundle discounts mentioned in the text.
 3.  **Verification:** You must extract the EXACT product detail page URL found in the text. DO NOT truncate or guess the URL.
 4.  **Recommendation:** Based on the 'Effective Price' (Price - Discounts), identify the single best value option.
+5.  **Fallback (Crucial):** If the RAW DATA indicates a site is blocked (e.g. "Amazon 503"), **YOU MUST** use your Google Search tool to find the current price and status for that product on that specific website. Do not return "N/A" if you can find it via search.
 
 ## Search Constraints
 - Brands to look for: {brands}
 - Product: {product_name}
 
 ## Output Format
-You must respond ONLY with a JSON object containing two keys: `comparison_table` (an array of product objects) and `top_recommendation` (a string explaining why the winner was chosen).
+You must respond ONLY with a valid JSON object matching this schema:
+{
+  "comparison_table": [
+    {
+      "website": "string (e.g., 'Amazon')",
+      "brand": "string",
+      "product": "string (Product Name)",
+      "original_price": "string (e.g., 'R 250.00')",
+      "sale_price": "string (e.g., 'R 199.00')",
+      "extra_discounts": "string (e.g., 'Buy 2 for R300' or 'None')",
+      "product_url": "string (The extracted URL)",
+      "comment": "string (Brief validation note)"
+    }
+  ],
+  "top_recommendation": "string (Reasoning for the best choice)"
+}
 """
 
 # Common search URL patterns for target websites
@@ -129,8 +145,14 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
                 next_data = soup.find('script', id='__NEXT_DATA__')
                 if next_data:
                     logger.info("🎉 Found Next.js hydration data! Extracting JSON...")
-                    # Return just the JSON structure - much cleaner for AI
                     return f"--- SOURCE (Next.js Data): {url} ---\n{next_data.string}\n"
+                
+                # Strategy 1.5: Regex fallback for Next.js data (in case BS4 fails)
+                import re
+                next_data_regex = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.+?)</script>', content)
+                if next_data_regex:
+                     logger.info("🎉 Found Next.js hydration data (via Regex)! Extracting JSON...")
+                     return f"--- SOURCE (Next.js Data): {url} ---\n{next_data_regex.group(1)}\n"
                 
                 # Strategy 2: Check for Service Unavailable (Amazon)
                 title = soup.title.string if soup.title else ""
@@ -211,6 +233,7 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
+                tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )
         
