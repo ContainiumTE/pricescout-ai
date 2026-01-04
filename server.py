@@ -255,7 +255,21 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
         analysis = json.loads(cleaned_text)
         return analysis
     except Exception as e:
-        logger.error(f"💥 AI Analysis failed: {str(e)}")
+        logger.error(f"💥 AI Analysis (Draft 1 with Tools) failed: {str(e)}. Retrying without tools...")
+        # RETRY MECHANISM: Try again without tools (Standard JSON Mode)
+        try:
+            response_retry = client.models.generate_content(
+                model="models/gemini-flash-latest",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                ),
+            )
+            import json
+            return json.loads(response_retry.text)
+        except Exception as retry_error:
+             logger.error(f"💥 AI Retry failed: {str(retry_error)}")
+             raise HTTPException(status_code=500, detail="AI Analysis failed after retry.")
         # Diagnostic: List available models to find the correct name
         try:
             logger.info("📋 Listing available models for debugging:")

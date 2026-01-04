@@ -77,21 +77,16 @@ const App: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Hexagon Search Icon (Logo) - Flat Top */}
+            {/* Hexagon Search Icon (Logo) - Using Image */}
             <div className="relative w-10 h-10 flex items-center justify-center">
-              <svg viewBox="0 0 100 100" className="w-full h-full text-containium-cyan drop-shadow-md" fill="currentColor">
-                <polygon points="25 5, 75 5, 95 50, 75 95, 25 95, 5 50" />
-              </svg>
+              <img src="/hexagon.png" alt="Containium Hexagon" className="w-full h-full object-contain drop-shadow-md" />
               <svg className="w-5 h-5 text-white absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">PriceScout AI</h1>
           </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
-            <span>Powered by</span>
-            <img src="/containium-logo.png" alt="Containium" className="h-6 opacity-80" />
-          </div>
+          {/* Footer moved out of header */}
         </div>
       </header>
 
@@ -170,16 +165,9 @@ const App: React.FC = () => {
 
         {status === AppStatus.SEARCHING && (
           <div className="max-w-2xl mx-auto pt-20 text-center">
-            {/* Rotating Hexagon Loader - Flat Top */}
+            {/* Rotating Hexagon Loader - Using Image */}
             <div className="inline-block relative w-24 h-24 mb-8">
-              {/* Background Trace */}
-              <svg viewBox="0 0 100 100" className="w-full h-full text-slate-200" fill="none" stroke="currentColor" strokeWidth="4">
-                <polygon points="25 5, 75 5, 95 50, 75 95, 25 95, 5 50" />
-              </svg>
-              {/* Spinning Active Trace */}
-              <svg viewBox="0 0 100 100" className="w-full h-full text-containium-cyan absolute top-0 left-0 animate-spin-slow" fill="none" stroke="currentColor" strokeWidth="4">
-                <polygon points="25 5, 75 5, 95 50, 75 95, 25 95, 5 50" strokeDasharray="210" strokeDashoffset="100" strokeLinecap="round" />
-              </svg>
+              <img src="/hexagon.png" alt="Scanning..." className="w-full h-full object-contain animate-spin-slow" />
             </div>
 
             <h2 className="text-2xl font-bold text-slate-800 mb-2 animate-pulse">Architecting Your Deals...</h2>
@@ -238,6 +226,14 @@ const App: React.FC = () => {
           animation: fadeIn 0.5s ease-out forwards;
         }
       `}</style>
+
+      {/* Mobile-Adjusted Footer */}
+      <footer className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-sm border-t border-slate-200 py-3 z-40">
+        <div className="flex items-center justify-center gap-2 text-[10px] md:text-xs font-medium text-slate-400 opacity-90 scale-95 origin-center">
+          <span>Powered by</span>
+          <img src="/containium-logo.png" alt="Containium" className="h-5 md:h-6" />
+        </div>
+      </footer>
     </div>
   );
 };
