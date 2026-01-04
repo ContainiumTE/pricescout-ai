@@ -68,9 +68,9 @@ You are a "Global E-Commerce Price Architect." Your goal is to take raw Markdown
 
 ## Output Format
 You must respond ONLY with a valid JSON object matching this schema:
-{
+{{
   "comparison_table": [
-    {
+    {{
       "website": "string (e.g., 'Amazon')",
       "brand": "string",
       "product": "string (Product Name)",
@@ -79,10 +79,10 @@ You must respond ONLY with a valid JSON object matching this schema:
       "extra_discounts": "string (e.g., 'Buy 2 for R300' or 'None')",
       "product_url": "string (The extracted URL)",
       "comment": "string (Brief validation note)"
-    }
+    }}
   ],
   "top_recommendation": "string (Reasoning for the best choice)"
-}
+}}
 """
 
 # Common search URL patterns for target websites
