@@ -77,23 +77,10 @@ const App: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Logo with Magnifying Glass */}
+            {/* Logo with Magnifying Glass (using hexagon.png) */}
             <div className="relative w-10 h-10 flex items-center justify-center">
-              <svg className="w-full h-full drop-shadow-sm" viewBox="0 0 100 100">
-                <path
-                  fill="#00EAFF"
-                  d="M50 5 L93.3 30 L93.3 80 L50 105 L6.7 80 L6.7 30 Z"
-                  className="opacity-10"
-                />
-                <path
-                  fill="none"
-                  stroke="#00EAFF"
-                  strokeWidth="4"
-                  d="M50 5 L93.3 30 L93.3 80 L50 105 L6.7 80 L6.7 30 Z"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <svg className="w-5 h-5 text-slate-700 absolute translate-y-[-2px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <img src="/hexagon.png" alt="Containium Hexagon" className="w-full h-full object-contain drop-shadow-md" />
+              <svg className="w-5 h-5 text-white absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
