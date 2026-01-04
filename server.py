@@ -11,6 +11,7 @@ from google.genai import types
 from bs4 import BeautifulSoup
 import json
 import nest_asyncio
+from supabase import create_client, Client
 
 # Required for environments where an event loop is already running
 nest_asyncio.apply()
@@ -29,6 +30,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize Supabase Client
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+supabase: Client = None
+
+if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        logger.info("✅ Supabase client initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Supabase: {str(e)}")
 
 class SearchParams(BaseModel):
     productName: str
@@ -215,9 +228,30 @@ def robust_json_extract(text: str):
     cleaned = re.sub(r"```", "", cleaned).strip()
     return json.loads(cleaned)
 
+async def log_search_to_supabase(params: SearchParams):
+    """Logs the search request to Supabase for permanent record."""
+    if not supabase:
+        logger.warning("⚠️ Supabase not configured. Skipping search log.")
+        return
+
+    try:
+        data = {
+            "product_name": params.productName,
+            "brands": params.brands,
+            "websites": params.websites
+        }
+        # Insert into 'searches' table
+        result = supabase.table("searches").insert(data).execute()
+        logger.info(f"💾 Search logged to Supabase: {params.productName}")
+    except Exception as e:
+        logger.error(f"💥 Failed to log search to Supabase: {str(e)}")
+
 @app.post("/analyze", response_model=AnalysisResult)
 async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
     logger.info(f"📥 Received request for product: {params.productName}, brands: {params.brands}, websites: {params.websites}")
+    
+    # Log the search permanently to Supabase
+    asyncio.create_task(log_search_to_supabase(params))
     
     if not x_api_key:
         logger.error("❌ No API key provided")

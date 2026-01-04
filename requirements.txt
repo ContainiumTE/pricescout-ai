@@ -6,3 +6,4 @@ pydantic>=2.0
 python-dotenv
 nest-asyncio
 beautifulsoup4
+supabase
