@@ -43,6 +43,13 @@ if SUPABASE_URL and SUPABASE_SERVICE_KEY:
     except Exception as e:
         logger.error(f"❌ Failed to initialize Supabase: {str(e)}")
 
+# --- MEMORY OPTIMIZATION: Global Semaphore ---
+# Limits concurrent browser instances to 1.
+# This queues users if they hit the app simultaneously, preventing 502 crashes on Render.
+scraping_semaphore = asyncio.Semaphore(1)
+
+import httpx
+
 class SearchParams(BaseModel):
     productName: str
     brands: List[str]
@@ -126,10 +133,81 @@ def get_search_url(domain: str, product_name: str) -> str:
         return f"{domain}/search?q={query}"
     return f"https://{clean_domain}/search?q={query}"
 
+def extract_content_from_html(html_content: str, url: str) -> str:
+    """Extracts relevant content from HTML, using specialized strategies."""
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Strategy 1: Look for Next.js hydration data (Takealot uses this)
+        next_data = soup.find('script', id='__NEXT_DATA__')
+        if next_data:
+            logger.info("🎉 Found Next.js hydration data! Extracting JSON...")
+            return f"--- SOURCE (Next.js Data): {url} ---\n{next_data.string}\n"
+        
+        # Strategy 1.5: Regex fallback for Next.js data (in case BS4 fails)
+        import re
+        next_data_regex = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.+?)</script>', html_content)
+        if next_data_regex:
+                logger.info("🎉 Found Next.js hydration data (via Regex)! Extracting JSON...")
+                return f"--- SOURCE (Next.js Data): {url} ---\n{next_data_regex.group(1)}\n"
+        
+        # Strategy 2: Check for Service Unavailable (Amazon)
+        title = soup.title.string if soup.title else ""
+        if "503" in title or "Service Unavailable" in title:
+                logger.warning("⚠️ Amazon 503 Block detected")
+                return f"--- SOURCE (BLOCKED): {url} ---\nERROR: Amazon blocked the request (503 Service Unavailable).\n"
+
+        # Strategy 3: Standard Text Extraction
+        body_content = soup.body.get_text(separator=' ', strip=True) if soup.body else ""
+        
+        # Truncate content if too massive to prevent token overflow, but kept generous
+        if len(body_content) > 50000:
+            body_content = body_content[:50000] + "... (truncated)"
+        
+        logger.info(f"📄 Extracted content length via HTML parsing: {len(body_content)}")
+        return f"--- SOURCE: {url} ---\n{body_content}\n"
+
+    except Exception as parse_error:
+        logger.error(f"⚠️ Parsing error: {parse_error}")
+        return f"--- SOURCE: {url} ---\n{html_content[:50000]}\n"
+
+async def lightweight_fetch(url: str) -> str | None:
+    """Attempts to fetch URL using httpx (lightweight) before trying browser."""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+    
+    # Sites known to work well with static fetch (Takealot uses Next.js hydration)
+    # Amazon often blocks simple requests, so we might want to skip it here to save time,
+    # but a quick check doesn't hurt.
+    
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+            response = await client.get(url, headers=headers)
+            if response.status_code == 200:
+                # Check if it looks valid
+                if "takealot" in url and "__NEXT_DATA__" in response.text:
+                   logger.info(f"⚡ Lightweight fetch SUCCESS for {url}")
+                   return extract_content_from_html(response.text, url)
+                
+                # For other sites, if we get a good 200 OK with substantial content, use it.
+                # However, many SPAs return empty shells.
+                # Heuristic: If content length > 5KB, might be useful. 
+                if len(response.text) > 5000:
+                    logger.info(f"⚡ Lightweight fetch succeeded (generic) for {url}")
+                    return extract_content_from_html(response.text, url)
+
+    except Exception as e:
+        logger.warning(f"⚠️ Lightweight fetch failed for {url}: {e}")
+    
+    return None
+
 async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
-    """Crawls a site and returns the markdown content."""
+    """Crawls a site and returns the markdown content using Browser."""
     url = get_search_url(site, product_name)
-    logger.info(f"🔍 Searching: {url}")
+    logger.info(f"🔍 Searching (Browser): {url}")
 
     config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
@@ -142,59 +220,14 @@ async def crawl_site(site: str, product_name: str, crawler: AsyncWebCrawler):
     )
     
     try:
-        logger.info(f"⏳ Starting crawl for {url}...")
+        logger.info(f"⏳ Starting browser crawl for {url}...")
         result = await crawler.arun(url=url, config=config)
         if result.success:
             # Use HTML content for better extraction
             content = result.html if result.html else result.markdown.raw_markdown
             content_length = len(content)
             logger.info(f"✅ Successfully crawled {url}, got {content_length} characters")
-            
-            # --- INTELLIGENT PARSING STRATEGY ---
-            try:
-                soup = BeautifulSoup(content, 'html.parser')
-                
-                # Strategy 1: Look for Next.js hydration data (Takealot uses this)
-                next_data = soup.find('script', id='__NEXT_DATA__')
-                if next_data:
-                    logger.info("🎉 Found Next.js hydration data! Extracting JSON...")
-                    return f"--- SOURCE (Next.js Data): {url} ---\n{next_data.string}\n"
-                
-                # Strategy 1.5: Regex fallback for Next.js data (in case BS4 fails)
-                import re
-                next_data_regex = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.+?)</script>', content)
-                if next_data_regex:
-                     logger.info("🎉 Found Next.js hydration data (via Regex)! Extracting JSON...")
-                     return f"--- SOURCE (Next.js Data): {url} ---\n{next_data_regex.group(1)}\n"
-                
-                # Strategy 2: Check for Service Unavailable (Amazon)
-                title = soup.title.string if soup.title else ""
-                if "503" in title or "Service Unavailable" in title:
-                     logger.warning("⚠️ Amazon 503 Block detected")
-                     return f"--- SOURCE (BLOCKED): {url} ---\nERROR: Amazon blocked the request (503 Service Unavailable).\n"
-
-                # Strategy 3: Markdown fallback (MUCH cleaner for AI than raw text)
-                body_content = ""
-                if hasattr(result, 'markdown') and result.markdown:
-                    # Handle both object-based and string-based markdown results
-                    if hasattr(result.markdown, 'raw_markdown'):
-                        body_content = result.markdown.raw_markdown
-                    elif isinstance(result.markdown, str):
-                        body_content = result.markdown
-                
-                if not body_content:
-                    body_content = soup.body.get_text(separator=' ', strip=True) if soup.body else ""
-                
-                # Truncate content if too massive to prevent token overflow, but kept generous
-                if len(body_content) > 50000:
-                    body_content = body_content[:50000] + "... (truncated)"
-                
-                logger.info(f"📄 Extracted content length: {len(body_content)}")
-                return f"--- SOURCE: {url} ---\n{body_content}\n"
-
-            except Exception as parse_error:
-                logger.error(f"⚠️ Parsing error: {parse_error}")
-                return f"--- SOURCE: {url} ---\n{content[:50000]}\n"
+            return extract_content_from_html(content, url)
         else:
             logger.error(f"❌ Crawl failed for {url}: {result.error_message}")
     except Exception as e:
@@ -259,34 +292,62 @@ async def analyze_products(params: SearchParams, x_api_key: str = Header(None)):
 
     client = genai.Client(api_key=x_api_key)
     
-    # Simple browser config
-    browser_config = BrowserConfig(
-        headless=True,
-        extra_args=[
-            "--disable-blink-features=AutomationControlled",
-        ]
-    )
-    
     all_markdown = ""
-    logger.info(f"🌐 Starting crawler...")
-    
-    try:
-        async with AsyncWebCrawler(config=browser_config) as crawler:
-            logger.info(f"✅ Crawler initialized successfully")
-            for i, site in enumerate(params.websites, 1):
-                logger.info(f"📍 Processing site {i}/{len(params.websites)}: {site}")
-                try:
-                    result = await crawl_site(site, params.productName, crawler)
-                    if result:
-                        all_markdown += result + "\n"
-                except Exception as e:
-                    logger.error(f"💥 Error processing {site}: {str(e)}")
-    except Exception as e:
-        logger.error(f"💥 Failed to initialize crawler: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Crawler initialization failed: {str(e)}")
+    sites_needing_browser = []
+
+    # 1. Try Lightweight Fetch first (Fast, Low Memory)
+    logger.info("🚀 Starting Lightweight Fetch Phase...")
+    for site in params.websites:
+        url = get_search_url(site, params.productName)
+        fetched_content = await lightweight_fetch(url)
+        if fetched_content:
+            all_markdown += fetched_content + "\n"
+        else:
+            sites_needing_browser.append(site)
+
+    # 2. If any sites failed lightweight fetch, use the Browser (Heavy, Semaphored)
+    if sites_needing_browser:
+        logger.info(f"⚠️ {len(sites_needing_browser)} sites need browser crawling. Entering queue...")
+        
+        # Acquire semaphore to ensure only one browser instance runs globally
+        async with scraping_semaphore:
+            logger.info("🔒 Semaphore acquired. Starting Browser Phase...")
+            
+            # Simple browser config optimized for memory
+            browser_config = BrowserConfig(
+                headless=True,
+                extra_args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage", # Crucial for Docker/Render
+                    "--single-process", # Saves memory
+                ]
+            )
+            
+            try:
+                # Context manager handles browser startup/shutdown
+                async with AsyncWebCrawler(config=browser_config) as crawler:
+                    logger.info(f"✅ Crawler initialized successfully")
+                    for i, site in enumerate(sites_needing_browser, 1):
+                        logger.info(f"📍 Processing (Browser) {i}/{len(sites_needing_browser)}: {site}")
+                        try:
+                            # Re-use the existing logic
+                            result = await crawl_site(site, params.productName, crawler)
+                            if result:
+                                all_markdown += result + "\n"
+                        except Exception as e:
+                            logger.error(f"💥 Error processing {site}: {str(e)}")
+            except Exception as e:
+                logger.error(f"💥 Failed to initialize crawler: {str(e)}")
+                # Continue if we have at least some content from lightweight fetch
+                if not all_markdown:
+                     raise HTTPException(status_code=500, detail=f"Crawler initialization failed: {str(e)}")
+        
+        logger.info("🔓 Semaphore released.")
 
     if not all_markdown.strip():
-        logger.error("❌ No content extracted")
+        logger.error("❌ No content extracted from any source")
         raise HTTPException(status_code=500, detail="Failed to extract content from target websites.")
     
     prompt = f"{SYSTEM_PROMPT.format(brands=', '.join(params.brands), product_name=params.productName)}\n\nRAW DATA:\n{all_markdown}"

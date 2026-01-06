@@ -12,8 +12,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright browsers AND their system dependencies
-RUN playwright install chromium
-RUN playwright install-deps chromium
+# Install Playwright browsers AND their system dependencies
+# Clean up apt cache afterwards to save space
+RUN playwright install chromium && \
+    playwright install-deps chromium && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONUNBUFFERED=1
 
 COPY . .
 
